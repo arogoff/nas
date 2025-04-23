@@ -23,4 +23,6 @@ dist-ssr
 *.sln
 *.sw?
 
-*/package-lock.json
+package-lock.json
+
+nas-frontend/package-lock.json
