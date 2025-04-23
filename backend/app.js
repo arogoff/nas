@@ -2,17 +2,26 @@ const express = require('express');
 const app = express();
 require('dotenv').config();
 const authRoutes = require('./routes/authRoutes');
-const usersRoutes = require('./routes/usersRoutes');
+const usersRoutes = require('./routes/userRoutes');
 const sharesRoutes = require('./routes/sharesRoutes');
 const fileRoutes = require('./routes/fileRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
+const auditRoutes = require('./routes/auditRoutes');
+const groupRoutes = require('./routes/groupRoutes');
+
+const { authLimiter, apiLimiter } = require('./middlewares/rateLimiter');
 
 app.use(express.json());
 
 // Routes
-app.use('/api', authRoutes);
-app.use('/api', usersRoutes);
-app.use('/api', sharesRoutes);
-app.use('/api', fileRoutes);
+app.use('/api', authRoutes, authLimiter);
+app.use('/api/notifications', notificationRoutes, authLimiter);
+app.use('/api/audit', auditRoutes, authLimiter);
+app.use('/api', usersRoutes, authLimiter, apiLimiter);
+app.use('/api', sharesRoutes, authLimiter, apiLimiter);
+app.use('/api', fileRoutes, authLimiter, apiLimiter);
+app.use('/api/groups', groupRoutes, authLimiter);
+
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

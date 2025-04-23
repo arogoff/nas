@@ -60,3 +60,40 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+CREATE TABLE notifications (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT,
+    share_id INT,
+    message TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (share_id) REFERENCES shares(id)
+);
+
+-- Create groups
+CREATE TABLE groups (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) UNIQUE NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Users can belong to multiple groups
+CREATE TABLE user_groups (
+    user_id INT,
+    group_id INT,
+    PRIMARY KEY (user_id, group_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE
+);
+
+-- Shares can allow multiple groups
+CREATE TABLE share_groups (
+    share_id INT,
+    group_id INT,
+    access_level ENUM('read', 'write', 'owner') NOT NULL DEFAULT 'read',
+    PRIMARY KEY (share_id, group_id),
+    FOREIGN KEY (share_id) REFERENCES shares(id) ON DELETE CASCADE,
+    FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE
+);
