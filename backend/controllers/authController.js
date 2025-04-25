@@ -4,13 +4,29 @@ const jwt = require('jsonwebtoken');
 
 exports.login = async (req, res) => {
   const { username, password } = req.body;
+
   try {
+    // Find user by username
     const [rows] = await db.query('SELECT * FROM users WHERE username = ?', [username]);
-    if (rows.length === 0) return res.status(401).json({ message: 'Invalid credentials' });
+
+    // If no user found, return invalid credentials
+    if (rows.length === 0) {
+      return res.status(401).json({ message: 'Invalid username or password' });
+    }
 
     const user = rows[0];
+
+    // Make sure password_hash field exists
+    if (!user.password_hash) {
+      return res.status(401).json({ message: 'Invalid username or password' });
+    }
+
+    // Compare plaintext password with stored hash
     const isMatch = await bcrypt.compare(password, user.password_hash);
-    if (!isMatch) return res.status(401).json({ message: 'Invalid credentials' });
+
+    if (!isMatch) {
+      return res.status(401).json({ message: 'Invalid username or password' });
+    }
 
     // Generate access token (short life)
     const accessToken = jwt.sign(
@@ -38,42 +54,61 @@ exports.login = async (req, res) => {
 
     res.json({ accessToken, refreshToken });
   } catch (err) {
-    console.error(err);
+    console.error('Login error:', err);
     res.status(500).json({ message: 'Server error' });
   }
 };
 
 exports.refreshToken = async (req, res) => {
-    const { refreshToken } = req.body;
-    if (!refreshToken) return res.sendStatus(401);
-  
-    try {
-      // Check if refresh token exists in DB
-      const [rows] = await db.query('SELECT * FROM refresh_tokens WHERE token = ?', [refreshToken]);
-      if (rows.length === 0) return res.sendStatus(403);
-  
-      const storedToken = rows[0];
-      if (new Date(storedToken.expires_at) < new Date()) {
-        // Token expired
-        await db.query('DELETE FROM refresh_tokens WHERE id = ?', [storedToken.id]);
-        return res.sendStatus(403);
-      }
-  
-      jwt.verify(refreshToken, process.env.JWT_SECRET, (err, user) => {
-        if (err) return res.sendStatus(403);
-  
-        // Generate new access token
-        const accessToken = jwt.sign(
-          { id: user.id, username: user.username },
-          process.env.JWT_SECRET,
-          { expiresIn: '15m' }
-        );
-  
-        res.json({ accessToken });
-      });
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ message: 'Server error' });
+  const { refreshToken } = req.body;
+
+  if (!refreshToken) {
+    return res.status(401).json({ message: 'Refresh token required' });
+  }
+
+  try {
+    // Check if refresh token exists in DB
+    const [rows] = await db.query('SELECT * FROM refresh_tokens WHERE token = ?', [refreshToken]);
+
+    if (rows.length === 0) {
+      return res.status(403).json({ message: 'Invalid refresh token' });
     }
-  };  
-  
+
+    const storedToken = rows[0];
+
+    // Check if token has expired
+    if (new Date(storedToken.expires_at) < new Date()) {
+      // Remove expired token
+      await db.query('DELETE FROM refresh_tokens WHERE id = ?', [storedToken.id]);
+      return res.status(403).json({ message: 'Refresh token expired' });
+    }
+
+    try {
+      // Verify the token
+      const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
+
+      // Get user info
+      const [userRows] = await db.query('SELECT * FROM users WHERE id = ?', [decoded.id]);
+
+      if (userRows.length === 0) {
+        return res.status(403).json({ message: 'User not found' });
+      }
+
+      const user = userRows[0];
+
+      // Generate new access token
+      const accessToken = jwt.sign(
+        { id: user.id, username: user.username, is_admin: user.is_admin },
+        process.env.JWT_SECRET,
+        { expiresIn: '15m' }
+      );
+
+      res.json({ accessToken });
+    } catch (jwtError) {
+      return res.status(403).json({ message: 'Invalid refresh token' });
+    }
+  } catch (err) {
+    console.error('Token refresh error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};

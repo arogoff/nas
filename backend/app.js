@@ -1,4 +1,5 @@
 const express = require('express');
+const cors = require('cors');
 const app = express();
 require('dotenv').config();
 const authRoutes = require('./routes/authRoutes');
@@ -11,15 +12,21 @@ const groupRoutes = require('./routes/groupRoutes');
 
 const { authLimiter, apiLimiter } = require('./middlewares/rateLimiter');
 
+app.use(cors({
+  origin: 'http://localhost:5173', // Replace with your frontend origin
+  credentials: true, // This is important for allowing credentials
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
 
 // Routes
-app.use('/api', authRoutes, authLimiter);
+app.use('/api/auth', authRoutes, authLimiter);
 app.use('/api/notifications', notificationRoutes, authLimiter);
 app.use('/api/audit', auditRoutes, authLimiter);
-app.use('/api', usersRoutes, authLimiter, apiLimiter);
-app.use('/api', sharesRoutes, authLimiter, apiLimiter);
-app.use('/api', fileRoutes, authLimiter, apiLimiter);
+app.use('/api/users', usersRoutes, authLimiter, apiLimiter);
+app.use('/api/shares', sharesRoutes, authLimiter, apiLimiter);
+app.use('/api/files', fileRoutes, authLimiter, apiLimiter);
 app.use('/api/groups', groupRoutes, authLimiter);
 
 
