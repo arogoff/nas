@@ -9,7 +9,7 @@ export default function App() {
       <Route path="/login" element={<LoginPage />} />
 
       <Route element={<SidebarLayout />}>
-        <Route path="/" element={<DashboardWrapper />} />
+        <Route path="/dashboard" element={<DashboardWrapper />} />
       </Route>
     </Routes>
   );
